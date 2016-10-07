@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>rise-logger</title>
+
+  <script src="../bower_components/webcomponentsjs/webcomponents.min.js"></script>
+  <script src="../bower_components/web-component-tester/browser.js"></script>
+
+  <link rel="import" href="../rise-logger.html">
+</head>
+<body>
+
+<rise-logger id="logger"></rise-logger>
+
+<script>
+  suite("rise-logger", function () {
+    var clock,
+      logger = document.querySelector("#logger");
+
+    suiteSetup(function() {
+      clock = sinon.useFakeTimers();
+    });
+
+    suiteTeardown(function() {
+      clock.restore();
+    });
+
+    suite("_isThrottled", function () {
+
+      suiteTeardown(function () {
+        logger._throttle = false;
+        logger._lastEvent = "";
+      });
+
+      test("should return false if last event is not throttled", function () {
+        assert.isFalse(logger._isThrottled(""));
+      });
+
+      test("should return true if last event is throttled", function () {
+        logger._throttle = true;
+        logger._lastEvent = "usage";
+
+        assert.isTrue(logger._isThrottled("usage"));
+      });
+
+    });
+
+    suite("_getInsertHeaders", function () {
+      var headers,
+        insertHeaders = {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer my-token"
+        };
+
+      test("should return correct URL to use for making the insert request", function () {
+        headers = logger._getInsertHeaders("my-token");
+
+        assert.isObject(headers);
+        assert.deepEqual(headers, insertHeaders);
+      });
+    });
+
+    suite("_getInsertUrl", function () {
+      var url,
+        insertUrl = "https://www.googleapis.com/bigquery/v2/projects/client-side-events/datasets/Widget_Events/tables/image_events/insertAll";
+
+      suiteTeardown(function () {
+        logger._setTableName("");
+      });
+
+      test("should return correct URL to use for making the insert request", function () {
+        logger._setTableName("image_events");
+
+        url = logger._getInsertURL();
+
+        assert.isString(url);
+        assert.equal(url, insertUrl);
+      });
+    });
+
+    suite("_onTokenResponse", function () {
+      var insertStub;
+
+      var resp = {
+          "response": {
+            "access_token": "my-token"
+          }
+        },
+        e = {
+          "stopPropagation": function () {}
+        };
+
+      setup(function () {
+        insertStub = sinon.stub(logger, "_insert");
+      });
+
+      teardown(function () {
+        insertStub.restore();
+      });
+
+      test("should call _insert function with correct values", function () {
+        logger._onTokenResponse(e, resp);
+
+        assert.isTrue(insertStub.calledWith({token: resp.response.access_token, refreshedAt: clock.Date()}));
+      });
+
+    });
+
+    suite("_getTokenParams", function() {
+      var params,
+        tokenParams = {
+          client_id: "1088527147109-6q1o2vtihn34292pjt4ckhmhck0rk0o7.apps.googleusercontent.com",
+          client_secret: "nlZyrcPLg6oEwO9f9Wfn29Wh",
+          refresh_token: "1/xzt4kwzE1H7W9VnKB8cAaCx6zb4Es4nKEoqaYHdTD15IgOrJDtdun6zK6XiATCKT",
+          grant_type: "refresh_token"
+        };
+
+      test("should return an object with correct params", function () {
+        params = logger._getTokenParams();
+
+        assert.deepEqual(params, tokenParams);
+      });
+
+    });
+
+    suite("log", function() {
+      var refreshStub,
+        params = {
+          "event": "refresh"
+        };
+
+      function insertDev(params) {
+        return {
+          "event": params.event,
+          "usage_type": "dev"
+        };
+      }
+
+      function insertStandalone(params) {
+        return {
+          "event": params.event,
+          "usage_type": "standalone"
+        };
+      }
+
+      setup(function() {
+        refreshStub = sinon.stub(logger, "_refreshToken");
+      });
+
+      teardown(function() {
+        refreshStub.restore();
+        logger._throttle = false;
+        logger._lastEvent = "";
+      });
+
+      test("should not make a request if table name is empty", function() {
+        logger.log("", {
+          "event": "refresh"
+        });
+
+        assert.equal(refreshStub.callCount, 0);
+      });
+
+      test("should not make a request if no params provided", function() {
+        logger.log("component_sheet_events");
+
+        assert.equal(refreshStub.callCount, 0);
+      });
+
+      test("should not make a request if event is empty", function() {
+        logger.log("component_sheet_events", {
+          "event": ""
+        });
+
+        assert.equal(refreshStub.callCount, 0);
+      });
+
+      test("should not make a request if event is throttled", function() {
+        logger._throttle = true;
+        logger._lastEvent = "ready";
+
+        logger.log("component_sheet_events", {
+          "event": "ready"
+        });
+
+        assert.equal(refreshStub.callCount, 0);
+      });
+
+      test("should not make a request if usage type is 'dev'", function() {
+        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertDev);
+
+        logger.log("component_sheet_events", {
+          "event": "ready"
+        });
+
+        assert.equal(refreshStub.callCount, 0);
+
+        getInsertStub.restore();
+      });
+
+      test("should not log the same event multiple times if the time between calls is less than 1 second", function() {
+        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
+
+        logger.log("component_sheet_events", {"event": "ready"});
+        clock.tick(500);
+        logger.log("component_sheet_events", {"event": "ready"});
+
+        assert.equal(refreshStub.callCount, 1);
+
+        getInsertStub.restore();
+      });
+
+      test("should log the same event multiple times if the time between calls is over 1 second", function() {
+        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
+
+        logger.log("component_sheet_events", {"event": "ready"});
+        clock.tick(1500);
+        logger.log("component_sheet_events", {"event": "ready"});
+
+        assert.equal(refreshStub.callCount, 2);
+
+        getInsertStub.restore();
+      });
+
+      test("should log different events if the time between calls is less than 1 second", function() {
+        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
+
+        logger.log("component_sheet_events", {"event": "ready"});
+        logger.log("component_sheet_events", {"event": "test"});
+
+        assert.equal(refreshStub.callCount, 2);
+
+        getInsertStub.restore();
+      });
+
+    });
+
+  });
+</script>
+</body>
+</html>

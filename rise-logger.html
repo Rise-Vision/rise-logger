@@ -1,4 +1,6 @@
 <link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="rise-logger-utils.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
 
 <!--
 `rise-logger` is a web component that is used for logging usage of a parent web component.
@@ -7,6 +9,15 @@
 -->
 <dom-module id="rise-logger">
   <template>
+    <rise-logger-utils id="utils"></rise-logger-utils>
+    <iron-ajax id="token"
+               method="POST"
+               handle-as="json"
+               on-response="_onTokenResponse">
+    </iron-ajax>
+    <iron-ajax id="insert"
+               method="POST">
+    </iron-ajax>
     <content></content>
   </template>
 </dom-module>
@@ -18,10 +29,133 @@
 
     "use strict";
 
+    var LOGGER_CLIENT_ID = "1088527147109-6q1o2vtihn34292pjt4ckhmhck0rk0o7.apps.googleusercontent.com",
+      LOGGER_CLIENT_SECRET = "nlZyrcPLg6oEwO9f9Wfn29Wh",
+      LOGGER_REFRESH_TOKEN = "1/xzt4kwzE1H7W9VnKB8cAaCx6zb4Es4nKEoqaYHdTD15IgOrJDtdun6zK6XiATCKT";
+
     Polymer({
       is: "rise-logger",
 
-      properties: {}
+      hostAttributes: {
+        hidden: true
+      },
+
+      properties: {
+        tableName: {
+          type: String,
+          readOnly: true,
+          value: ""
+        },
+        params: {
+          type: Object,
+          readOnly: true,
+          value: function() { return {}; }
+        }
+      },
+
+      _throttle: false,
+
+      _throttleDelay: 1000,
+
+      _lastEvent: "",
+
+      _refreshDate: 0,
+
+      _token: "",
+
+      _isThrottled: function(event) {
+        return this._throttle && (this._lastEvent === event);
+      },
+
+      _getInsertHeaders: function(token) {
+        return {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        };
+      },
+
+      _getInsertURL: function() {
+        var serviceUrl = "https://www.googleapis.com/bigquery/v2/projects/client-side-events/datasets/Widget_Events/tables/TABLE_ID/insertAll";
+
+        return serviceUrl.replace("TABLE_ID", this.tableName);
+      },
+
+      _insert: function(refreshData) {
+        this._refreshDate = refreshData.refreshedAt || this._refreshDate;
+        this._token = refreshData.token || this._token;
+
+        this.$.insert.url = this._getInsertURL();
+        this.$.insert.headers = this._getInsertHeaders(this._token);
+        this.$.insert.body = JSON.stringify(this.$.utils.getInsertData(this.params));
+
+        this.$.insert.generateRequest();
+      },
+
+      _onTokenResponse: function(e, resp) {
+        // in case there are other instances of rise-logger
+        e.stopPropagation();
+
+        if (resp && resp.response) {
+          this._insert({ token: resp.response.access_token, refreshedAt: new Date() });
+        }
+      },
+
+      _getTokenParams: function() {
+        var params = {};
+
+        params.client_id = LOGGER_CLIENT_ID;
+
+        params.client_secret = LOGGER_CLIENT_SECRET;
+
+        params.refresh_token = LOGGER_REFRESH_TOKEN;
+
+        params.grant_type = "refresh_token";
+
+        return params;
+      },
+
+      _refreshToken: function () {
+        if (new Date() - this._refreshDate < 3580000) {
+          return this._insert({});
+        }
+
+        this.$.token.url = "https://www.googleapis.com/oauth2/v3/token";
+        this.$.token.params = this._getTokenParams();
+
+        this.$.token.generateRequest();
+      },
+
+      /**
+       * Logs data to Google Big Query
+       *
+       */
+      log: function(tableName, params) {
+        var self = this,
+          insertParams;
+
+        if (!tableName || !params || (params.hasOwnProperty("event") && !params.event) ||
+          (params.hasOwnProperty("event") && this._isThrottled(params.event))) {
+          return;
+        }
+
+        insertParams = this.$.utils.getInsertParams(params);
+
+        if (!insertParams || insertParams.usage_type === "dev") {
+          return;
+        }
+
+        this._throttle = true;
+        this._lastEvent = params.event;
+
+        this._setTableName(tableName);
+        this._setParams(insertParams);
+
+        this.debounce("throttle", function () {
+          self._throttle = false;
+        }, this._throttleDelay);
+
+        this._refreshToken();
+      }
 
     });
 

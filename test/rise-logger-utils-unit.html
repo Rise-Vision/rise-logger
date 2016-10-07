@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>rise-logger-utils</title>
+
+  <script src="../bower_components/webcomponentsjs/webcomponents.min.js"></script>
+  <script src="../bower_components/web-component-tester/browser.js"></script>
+
+  <link rel="import" href="../rise-logger-utils.html">
+</head>
+<body>
+
+<rise-logger-utils id="utils"></rise-logger-utils>
+
+<script>
+  suite("rise-logger-utils", function () {
+    var utils = document.querySelector("#utils");
+
+    suite("_getUsageType", function () {
+
+      test("should return 'dev' when localhost detected", function () {
+        assert.equal(utils._getUsageType("http://localhost:8000/#/preview/widget"), "dev");
+      });
+
+      test("should return 'widget'", function () {
+        assert.equal(utils._getUsageType("http://s3.amazonaws.com/widget-google-spreadsheet/2.0.0/dist/widget.html"), "widget");
+      });
+
+      test("should return 'standalone'", function () {
+        assert.equal(utils._getUsageType("https://storage.googleapis.com/risemedialibrary-30007b45-3df0-4c7b-9f7f-7d8ce6443013/test/content.html"), "standalone");
+      });
+
+    });
+
+    suite("getInsertData", function () {
+
+      var data = null,
+        params = {
+          "event": "ready",
+          "event_details": "testing",
+          "usage_type": "standalone",
+          "display_id": "abc123"
+        };
+
+      suiteSetup(function() {
+        data = utils.getInsertData(params);
+      });
+
+      test("should return an object containing insertId property", function() {
+        assert.property(data.rows[0], "insertId");
+        assert.isString(data.rows[0].insertId);
+      });
+
+      test("should return an object containing event property", function() {
+        assert.property(data.rows[0].json, "event");
+        assert.isString(data.rows[0].json.event);
+        assert.equal(data.rows[0].json.event, params.event);
+      });
+
+      test("should return an object containing event_details property", function() {
+        assert.property(data.rows[0].json, "event_details");
+        assert.isString(data.rows[0].json.event_details);
+        assert.equal(data.rows[0].json.event_details, params.event_details);
+      });
+
+      test("should return an object containing usage_type property", function() {
+        assert.property(data.rows[0].json, "usage_type");
+        assert.isString(data.rows[0].json.usage_type);
+        assert.equal(data.rows[0].json.usage_type, params.usage_type);
+      });
+
+      test("should return an object containing display_id property", function() {
+        expect(data.rows[0].json.display_id).to.exist;
+        expect(data.rows[0].json.display_id).to.be.a("string");
+        expect(data.rows[0].json.display_id).to.equal(params.display_id);
+      });
+
+      test("should return an object containing ts property", function() {
+        expect(data.rows[0].json.ts).to.exist;
+        expect(data.rows[0].json.ts).to.be.a("string");
+      });
+
+    });
+
+    suite("getInsertParams", function () {
+
+      test("should return null when event param missing", function () {
+        assert.isNull(utils.getInsertParams({"event_details": "test"}));
+      });
+
+      test("should return correct params including usage_type", function () {
+        var data;
+
+        sinon.stub(utils, "_getUsageType", function () { return "standalone"});
+
+        data = utils.getInsertParams({event: "ready", display_id: "abc123"});
+
+        assert.deepEqual(data, {
+          event: "ready",
+          usage_type: "standalone",
+          display_id: "abc123"
+        });
+
+        utils._getUsageType.restore();
+      });
+
+    });
+
+  });
+</script>
+</body>
+</html>
