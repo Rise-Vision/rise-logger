@@ -24,11 +24,7 @@
         assert.equal(utils._getUsageType("http://localhost:8000/#/preview/widget"), "dev");
       });
 
-      test("should return 'widget'", function () {
-        assert.equal(utils._getUsageType("http://s3.amazonaws.com/widget-google-spreadsheet/2.0.0/dist/widget.html"), "widget");
-      });
-
-      test("should return 'standalone'", function () {
+      test("should return 'standalone' by default", function () {
         assert.equal(utils._getUsageType("https://storage.googleapis.com/risemedialibrary-30007b45-3df0-4c7b-9f7f-7d8ce6443013/test/content.html"), "standalone");
       });
 
@@ -91,6 +87,18 @@
       });
 
       test("should return correct params", function () {
+        var data;
+
+        data = utils.getInsertParams({event: "ready", usage_type: "widget"}, "abc123");
+
+        assert.deepEqual(data, {
+          event: "ready",
+          usage_type: "widget",
+          display_id: "abc123"
+        });
+      });
+
+      test("should return correct params when no 'usage_type' provided", function () {
         var data;
 
         sinon.stub(utils, "_getUsageType", function () { return "standalone"});
