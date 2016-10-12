@@ -10,6 +10,13 @@
 <dom-module id="rise-logger">
   <template>
     <rise-logger-utils id="utils"></rise-logger-utils>
+    <iron-ajax id="displayId"
+               url="//localhost:9494/displays"
+               handle-as="json"
+               on-response="_onDisplayIdResponse"
+               on-error="_onDisplayIdError"
+               verbose="true">
+    </iron-ajax>
     <iron-ajax id="token"
                method="POST"
                handle-as="json"
@@ -53,6 +60,12 @@
         }
       },
 
+      _logWaiting: null,
+
+      _displayId: "",
+
+      _displayIdReceived: false,
+
       _throttle: false,
 
       _throttleDelay: 1000,
@@ -91,6 +104,26 @@
         this.$.insert.generateRequest();
       },
 
+      _onDisplayIdResponse: function(e, resp) {
+        if (resp.response && resp.response !== "") {
+          this._displayId = resp.response.displayId;
+        }
+
+        this._displayIdReceived = true;
+
+        if (this._logWaiting) {
+          this.log(this._logWaiting.tableName, this._logWaiting.params);
+        }
+      },
+
+      _onDisplayIdError: function() {
+        this._displayIdReceived = true;
+
+        if (this._logWaiting) {
+          this.log(this._logWaiting.tableName, this._logWaiting.params);
+        }
+      },
+
       _onTokenResponse: function(e, resp) {
         // in case there are other instances of rise-logger
         e.stopPropagation();
@@ -126,6 +159,14 @@
       },
 
       /**
+       * An instance of the element was inserted into the DOM.
+       */
+      attached: function() {
+        // request the display id from Rise Cache
+        this.$.displayId.generateRequest();
+      },
+
+      /**
        * Logs data to Google Big Query
        *
        */
@@ -138,7 +179,17 @@
           return;
         }
 
-        insertParams = this.$.utils.getInsertParams(params);
+        if (!this._displayIdReceived) {
+          // save the log details so they can be used to execute log() again from displayId handlers
+          this._logWaiting = {
+            tableName: tableName,
+            params: JSON.parse(JSON.stringify(params))
+          };
+
+          return;
+        }
+
+        insertParams = this.$.utils.getInsertParams(params, this._displayId);
 
         if (!insertParams || insertParams.usage_type === "dev") {
           return;

@@ -83,13 +83,16 @@
        * Gets the params to use in the POST request to Big Query
        *
        */
-      getInsertParams: function(params) {
+      getInsertParams: function(params, displayId) {
         var json = null;
 
         // event is required.
         if (params.event) {
           // clone params
           json = JSON.parse(JSON.stringify(params));
+
+          // add the display id
+          json.display_id = displayId;
 
           // add the usage type
           json.usage_type = this._getUsageType(window.location.href);

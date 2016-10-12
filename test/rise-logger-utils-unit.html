@@ -87,15 +87,15 @@
     suite("getInsertParams", function () {
 
       test("should return null when event param missing", function () {
-        assert.isNull(utils.getInsertParams({"event_details": "test"}));
+        assert.isNull(utils.getInsertParams({"event_details": "test"}, "abc123"));
       });
 
-      test("should return correct params including usage_type", function () {
+      test("should return correct params", function () {
         var data;
 
         sinon.stub(utils, "_getUsageType", function () { return "standalone"});
 
-        data = utils.getInsertParams({event: "ready", display_id: "abc123"});
+        data = utils.getInsertParams({event: "ready"}, "abc123");
 
         assert.deepEqual(data, {
           event: "ready",
