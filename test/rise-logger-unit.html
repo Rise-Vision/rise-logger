@@ -80,6 +80,69 @@
       });
     });
 
+    suite("_onDisplayIdResponse", function () {
+      var logStub;
+
+      var resp = {
+          "response": {
+            "displayId": "abc123"
+          }
+        },
+        e = {
+          "stopPropagation": function () {}
+        };
+
+      setup(function () {
+        logStub = sinon.stub(logger, "log");
+        logger._displayIdReceived = false;
+      });
+
+      teardown(function () {
+        logStub.restore();
+        logger._logWaiting = null;
+      });
+
+      test("should flag display id has been received", function() {
+        logger._onDisplayIdResponse(e, resp);
+
+        assert.isTrue(logger._displayIdReceived);
+      });
+
+      test("should call log() function with saved log params", function () {
+        logger._logWaiting = {tableName: "test", params: {event: "ready"}};
+        logger._onDisplayIdResponse(e, resp);
+
+        assert.isTrue(logStub.calledWith("test", {event: "ready"}));
+      });
+    });
+
+    suite("_onDisplayIdError", function() {
+      var logStub;
+
+      setup(function () {
+        logStub = sinon.stub(logger, "log");
+        logger._displayIdReceived = false;
+      });
+
+      teardown(function () {
+        logStub.restore();
+        logger._logWaiting = null;
+      });
+
+      test("should flag display id has been received", function() {
+        logger._onDisplayIdError();
+
+        assert.isTrue(logger._displayIdReceived);
+      });
+
+      test("should call log() function with saved log params", function () {
+        logger._logWaiting = {tableName: "test", params: {event: "ready"}};
+        logger._onDisplayIdError();
+
+        assert.isTrue(logStub.calledWith("test", {event: "ready"}));
+      });
+    });
+
     suite("_onTokenResponse", function () {
       var insertStub;
 
@@ -147,12 +210,15 @@
 
       setup(function() {
         refreshStub = sinon.stub(logger, "_refreshToken");
+        logger._displayIdReceived = true;
+        logger._displayId = "abc123";
       });
 
       teardown(function() {
         refreshStub.restore();
         logger._throttle = false;
         logger._lastEvent = "";
+        logger._logWaiting = null;
       });
 
       test("should not make a request if table name is empty", function() {
@@ -196,6 +262,21 @@
         });
 
         assert.equal(refreshStub.callCount, 0);
+
+        getInsertStub.restore();
+      });
+
+      test("should not make a request and save log params when display id not received", function() {
+        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
+
+        logger._displayIdReceived = false;
+
+        logger.log("component_sheet_events", {
+          "event": "ready"
+        });
+
+        assert.equal(refreshStub.callCount, 0);
+        assert.deepEqual(logger._logWaiting, {tableName: "component_sheet_events", params: {"event": "ready"}});
 
         getInsertStub.restore();
       });
