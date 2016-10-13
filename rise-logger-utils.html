@@ -12,10 +12,6 @@
 
     "use strict";
 
-    var USAGE_DEV = "dev",
-      USAGE_STANDALONE = "standalone",
-      USAGE_WIDGET = "widget";
-
     Polymer({
       is: "rise-logger-utils",
 
@@ -42,15 +38,12 @@
 
       _getUsageType: function(href) {
         var a = document.createElement("a"),
-          type = USAGE_STANDALONE;
+          type = "standalone";
 
         a.href = href;
 
         if (a.hostname === "localhost") {
-          type = USAGE_DEV;
-        }
-        else if (a.hostname === "s3.amazonaws.com" && a.pathname.indexOf("widget-") > -1) {
-          type = USAGE_WIDGET;
+          type = "dev";
         }
 
         return type;
@@ -95,7 +88,7 @@
           json.display_id = displayId;
 
           // add the usage type
-          json.usage_type = this._getUsageType(window.location.href);
+          json.usage_type = json.usage_type || this._getUsageType(window.location.href);
         }
 
         return json;
