@@ -3,9 +3,43 @@
 <link rel="import" href="../iron-ajax/iron-ajax.html">
 
 <!--
-`rise-logger` is a web component that is used for logging usage of a parent web component.
+`rise-logger` is a web component that is used for logging usage data of a parent Rise Vision web component (eg. [rise-google-sheet](http://rise-vision.github.io/rise-google-sheet)).
 
-@demo
+Logging the usage data of a parent web component to Big Query is done via the `log()` method. The method takes two parameters, the first being `tableName` which is the table on Big Query that you need to log to. The second parameter is `params` which should be an object containing the property values that correspond to the table fields.
+
+The logger component will inherently populate a `display_id` property and value for logging to the table by retrieving the display id of the player via [Rise Cache](https://github.com/Rise-Vision/rise-cache-v2).
+
+#### Example Usage
+
+The following illustrates how to use `rise-logger` within a parent Rise Vision web component.
+
+    <link rel="import" href="../rise-logger/rise-logger.html">
+
+    <dom-module id="my-component">
+      <template>
+        <rise-logger id="logger"></rise-logger>
+        <content></content>
+      </template>
+    </dom-module>
+
+    <script>
+      (function() {
+        "use strict";
+
+        Polymer({
+          is: "my-component",
+
+          properties: {},
+
+          ready: function() {
+            // log usage
+            this.$.logger.log("my-component-table", {
+              "event": "ready"
+            });
+          }
+        })();
+    </script>
+
 -->
 <dom-module id="rise-logger">
   <template>
@@ -48,11 +82,19 @@
       },
 
       properties: {
+
+        /**
+         * The name of the table in Google Big Query to log to.
+         */
         tableName: {
           type: String,
           readOnly: true,
           value: ""
         },
+
+        /**
+         * The data which corresponds with the fields in the Big Query table.
+         */
         params: {
           type: Object,
           readOnly: true,
