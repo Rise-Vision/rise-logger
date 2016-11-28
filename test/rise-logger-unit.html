@@ -100,12 +100,28 @@
       teardown(function () {
         logStub.restore();
         logger._logWaiting = null;
+        logger._displayId = "";
       });
 
       test("should flag display id has been received", function() {
         logger._onDisplayIdResponse(e, resp);
 
         assert.isTrue(logger._displayIdReceived);
+      });
+
+      test("should fire 'rise-logger-display-id' event", function(done) {
+        var listener = function(response) {
+          responded = true;
+          assert.equal(resp.response.displayId, response.detail);
+          logger.removeEventListener("rise-logger-display-id", listener);
+        },
+          responded = false;
+
+        logger.addEventListener("rise-logger-display-id", listener);
+        logger._onDisplayIdResponse(e, resp);
+
+        assert.isTrue(responded);
+        done();
       });
 
       test("should call log() function with saved log params", function () {
@@ -133,6 +149,20 @@
         logger._onDisplayIdError();
 
         assert.isTrue(logger._displayIdReceived);
+      });
+
+      test("should fire 'rise-logger-display-id' event", function(done) {
+        var listener = function() {
+            responded = true;
+            logger.removeEventListener("rise-logger-display-id", listener);
+          },
+          responded = false;
+
+        logger.addEventListener("rise-logger-display-id", listener);
+        logger._onDisplayIdError();
+
+        assert.isTrue(responded);
+        done();
       });
 
       test("should call log() function with saved log params", function () {
