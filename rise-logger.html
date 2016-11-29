@@ -102,6 +102,12 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         }
       },
 
+      /**
+       * Fired when Rise Cache responds providing a display id
+       *
+       * @event rise-logger-display-id
+       */
+
       _logWaiting: null,
 
       _displayId: "",
@@ -152,6 +158,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         }
 
         this._displayIdReceived = true;
+        this.fire("rise-logger-display-id", this._displayId);
 
         if (this._logWaiting) {
           this.log(this._logWaiting.tableName, this._logWaiting.params);
@@ -160,6 +167,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 
       _onDisplayIdError: function() {
         this._displayIdReceived = true;
+        this.fire("rise-logger-display-id");
 
         if (this._logWaiting) {
           this.log(this._logWaiting.tableName, this._logWaiting.params);
