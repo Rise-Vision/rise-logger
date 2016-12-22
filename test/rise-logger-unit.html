@@ -80,8 +80,46 @@
       });
     });
 
-    suite("_onDisplayIdResponse", function () {
+    suite( "_nextLogWaiting", function() {
       var logStub;
+
+      setup( function() {
+        logStub = sinon.stub(logger, "log");
+      } );
+
+      teardown( function() {
+        logStub.restore();
+        logger._logsWaiting = [];
+      } );
+
+      test( "should call log() for every queued item", function() {
+        logger._logsWaiting = [{
+          tableName: "test", params: {event: "ready"}
+        },{
+          tableName: "test2", params: {event: "error"}
+        }];
+
+        logger._nextLogWaiting();
+
+        // simulate debounce and progress more than 2.5 seconds
+        clock.tick(3000);
+
+        assert.isTrue(logStub.calledTwice);
+        assert.equal(logger._logsWaiting.length, 0);
+      } );
+
+      test( "should not call log() if no queued items", function() {
+        logger._nextLogWaiting();
+
+        clock.tick(3000);
+
+        assert.equal(logStub.callCount, 0);
+      } );
+
+    } );
+
+    suite("_onDisplayIdResponse", function () {
+      var nextLogStub;
 
       var resp = {
           "response": {
@@ -93,13 +131,13 @@
         };
 
       setup(function () {
-        logStub = sinon.stub(logger, "log");
+        nextLogStub = sinon.stub(logger, "_nextLogWaiting");
         logger._displayIdReceived = false;
       });
 
       teardown(function () {
-        logStub.restore();
-        logger._logWaiting = null;
+        nextLogStub.restore();
+        logger._logsWaiting = [];
         logger._displayId = "";
       });
 
@@ -124,24 +162,29 @@
         done();
       });
 
-      test("should call log() function with saved log params", function () {
-        logger._logWaiting = {tableName: "test", params: {event: "ready"}};
+      test("should call _nextLogWaiting() function to execute any queued log() calls", function () {
+        logger._logsWaiting = [{
+          tableName: "test", params: {event: "ready"}
+        },{
+          tableName: "test2", params: {event: "error"}
+        }];
+
         logger._onDisplayIdResponse(e, resp);
 
-        assert.isTrue(logStub.calledWith("test", {event: "ready"}));
+        assert.isTrue(nextLogStub.calledOnce);
       });
     });
 
     suite("_onDisplayIdError", function() {
-      var logStub;
+      var nextLogStub;
 
       setup(function () {
-        logStub = sinon.stub(logger, "log");
+        nextLogStub = sinon.stub(logger, "_nextLogWaiting");
         logger._displayIdReceived = false;
       });
 
       teardown(function () {
-        logStub.restore();
+        nextLogStub.restore();
         logger._logWaiting = null;
       });
 
@@ -165,11 +208,16 @@
         done();
       });
 
-      test("should call log() function with saved log params", function () {
-        logger._logWaiting = {tableName: "test", params: {event: "ready"}};
+      test("should call _nextLogWaiting() function to execute any queued log() calls", function () {
+        logger._logsWaiting = [{
+          tableName: "test", params: {event: "ready"}
+        },{
+          tableName: "test2", params: {event: "error"}
+        }];
+
         logger._onDisplayIdError();
 
-        assert.isTrue(logStub.calledWith("test", {event: "ready"}));
+        assert.isTrue(nextLogStub.calledOnce);
       });
     });
 
@@ -248,7 +296,7 @@
         refreshStub.restore();
         logger._throttle = false;
         logger._lastEvent = "";
-        logger._logWaiting = null;
+        logger._logsWaiting = [];
       });
 
       test("should not make a request if table name is empty", function() {
@@ -301,12 +349,20 @@
 
         logger._displayIdReceived = false;
 
-        logger.log("component_sheet_events", {
+        logger.log("test1", {
           "event": "ready"
         });
 
+        logger.log("test2", {
+          "event": "error"
+        });
+
         assert.equal(refreshStub.callCount, 0);
-        assert.deepEqual(logger._logWaiting, {tableName: "component_sheet_events", params: {"event": "ready"}});
+        assert.deepEqual(logger._logsWaiting, [{
+          tableName: "test1", params: {"event": "ready"}
+        },{
+          tableName: "test2", params: {"event": "error"}
+        }]);
 
         getInsertStub.restore();
       });

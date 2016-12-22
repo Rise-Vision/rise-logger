@@ -108,7 +108,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
        * @event rise-logger-display-id
        */
 
-      _logWaiting: null,
+      _logsWaiting: [],
 
       _displayId: "",
 
@@ -152,6 +152,19 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         this.$.insert.generateRequest();
       },
 
+      _nextLogWaiting: function() {
+        var self = this;
+
+        if (this._logsWaiting.length > 0) {
+          this.debounce("queue", function () {
+            var item = self._logsWaiting.shift();
+
+            self.log( item.tableName, item.params );
+            self._nextLogWaiting();
+          }, this._throttleDelay + 250 );
+        }
+      },
+
       _onDisplayIdResponse: function(e, resp) {
         if (resp.response && resp.response !== "") {
           this._displayId = resp.response.displayId;
@@ -160,18 +173,14 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         this._displayIdReceived = true;
         this.fire("rise-logger-display-id", this._displayId);
 
-        if (this._logWaiting) {
-          this.log(this._logWaiting.tableName, this._logWaiting.params);
-        }
+        this._nextLogWaiting();
       },
 
       _onDisplayIdError: function() {
         this._displayIdReceived = true;
         this.fire("rise-logger-display-id");
 
-        if (this._logWaiting) {
-          this.log(this._logWaiting.tableName, this._logWaiting.params);
-        }
+        this._nextLogWaiting();
       },
 
       _onTokenResponse: function(e, resp) {
@@ -231,10 +240,10 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 
         if (!this._displayIdReceived) {
           // save the log details so they can be used to execute log() again from displayId handlers
-          this._logWaiting = {
+          this._logsWaiting.push( {
             tableName: tableName,
-            params: JSON.parse(JSON.stringify(params))
-          };
+            params: JSON.parse( JSON.stringify( params ) )
+          } );
 
           return;
         }
