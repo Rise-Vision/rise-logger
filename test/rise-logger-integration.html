@@ -15,65 +15,68 @@
 <rise-logger id="logger"></rise-logger>
 
 <script>
-  var logger = document.querySelector("#logger"),
+  /* global sinon, suite, test, assert, setup, suiteSetup, suiteTeardown */
+
+  var logger = document.querySelector( "#logger" ),
     display = "abc123";
 
   // mock getting display id from Rise Cache
-  sinon.stub(logger.$.displayId, "generateRequest", function() {
-    logger._onDisplayIdResponse(null, {response: {displayId: display}});
-  });
+  sinon.stub( logger.$.displayId, "generateRequest", function() {
+    logger._onDisplayIdResponse( null, { response: { displayId: display } } );
+  } );
 
-  suite("rise-logger", function () {
-    var xhr, clock, requests,
+  suite( "rise-logger", function() {
+    var xhr,
+      clock,
+      requests,
       tableName = "test",
       interval = 3580000,
       token = "my-token",
       data = { "access_token": token },
-      json = JSON.stringify(data),
       params = {
         "event": "ready"
       };
 
-    suiteSetup(function() {
+    suiteSetup( function() {
       requests = [];
 
       xhr = sinon.useFakeXMLHttpRequest();
 
-      xhr.onCreate = function (xhr) {
-        requests.push(xhr);
+      xhr.onCreate = function( xhr ) {
+        requests.push( xhr );
       };
 
       clock = sinon.useFakeTimers();
 
-      sinon.stub(logger.$.utils, "_getUsageType", function() {
+      sinon.stub( logger.$.utils, "_getUsageType", function() {
         return "standalone";
-      });
+      } );
 
-      sinon.stub(logger, "_refreshToken", function () {
-        logger._onTokenResponse({
-          "stopPropagation": function () {}
+      sinon.stub( logger, "_refreshToken", function() {
+        logger._onTokenResponse( {
+          "stopPropagation": function() {}
         }, {
           "response": data
-        })
-      });
-    });
+        } )
+      } );
+    } );
 
-    suiteTeardown(function() {
+    suiteTeardown( function() {
       xhr.restore();
       clock.restore();
       logger.$.utils._getUsageType.restore();
       logger.$.displayId.generateRequest.restore();
       logger._refreshToken.restore();
-    });
+    } );
 
-    setup(function() {
+    setup( function() {
       requests = [];
 
-      clock.tick(interval);
-      logger.log(tableName, params);
+      clock.tick( interval );
+      logger.log( tableName, params );
 
-      requests[0].respond(200, { "Content-Type": "text/json" }, JSON.stringify({"kind": "bigquery#tableDataInsertAllResponse"}));
-    });
+      requests[ 0 ].respond( 200, { "Content-Type": "text/json" }, JSON.stringify( { "kind": "bigquery#tableDataInsertAllResponse" } ) );
+    } );
 
     function getDateSuffix() {
       var date = new Date(),
@@ -81,41 +84,42 @@
         month = date.getUTCMonth() + 1,
         day = date.getUTCDate();
 
-      if (month < 10) {
+      if ( month < 10 ) {
         month = "0" + month;
       }
 
-      if (day < 10) {
+      if ( day < 10 ) {
         day = "0" + day;
       }
 
       return "" + year + month + day;
     }
 
-    test("should make a POST request", function() {
-      assert.equal(requests[0].method, "POST");
-    });
+    test( "should make a POST request", function() {
+      assert.equal( requests[ 0 ].method, "POST" );
+    } );
 
-    test("should make a request to the correct URL", function() {
-      assert.include(requests[0].url, "https://www.googleapis.com/bigquery/v2/projects/client-side-events/datasets/Widget_Events/tables/test");
-      assert.include(requests[0].url, "/insertAll");
-    });
+    test( "should make a request to the correct URL", function() {
+      assert.include( requests[ 0 ].url, "https://www.googleapis.com/bigquery/v2/projects/client-side-events/datasets/Widget_Events/tables/test" );
+      assert.include( requests[ 0 ].url, "/insertAll" );
+    } );
 
-    test("should set the Content-Type header", function() {
-      assert.equal(requests[0].requestHeaders["content-type"], "application/json;charset=utf-8");
-    });
+    test( "should set the Content-Type header", function() {
+      assert.equal( requests[ 0 ].requestHeaders[ "content-type" ], "application/json;charset=utf-8" );
+    } );
 
-    test("should set the Authorization header", function() {
-      assert.equal(requests[0].requestHeaders.authorization, "Bearer " + token);
-    });
+    test( "should set the Authorization header", function() {
+      assert.equal( requests[ 0 ].requestHeaders.authorization, "Bearer " + token );
+    } );
 
-    test("should send string data in the body", function() {
-      assert.include(requests[0].requestBody, '{"kind":"bigquery#tableDataInsertAllRequest","skipInvalidRows":false,' +
-        '"ignoreUnknownValues":false,"templateSuffix":"' + getDateSuffix() + '","rows":[{"insertId":');
-      assert.include(requests[0].requestBody, '"json":{"event":"' + params.event + '","display_id":"' + display + '","usage_type":"standalone","ts":');
-    });
+    test( "should send string data in the body", function() {
+      assert.include( requests[ 0 ].requestBody, "{\"kind\":\"bigquery#tableDataInsertAllRequest\",\"skipInvalidRows\":false," +
+        "\"ignoreUnknownValues\":false,\"templateSuffix\":\"" + getDateSuffix() + "\",\"rows\":[{\"insertId\":" );
+      assert.include( requests[ 0 ].requestBody, "\"json\":{\"event\":\"" + params.event + "\",\"display_id\":\"" + display + "\",\"usage_type\":\"standalone\",\"ts\":" );
+    } );
 
-  });
+  } );
+
 </script>
 </body>
 </html>
