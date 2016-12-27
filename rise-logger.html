@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <script>
-  (function() {
+  ( function() {
     /* global Polymer */
     /* jshint newcap: false */
 
@@ -74,7 +74,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
       LOGGER_CLIENT_SECRET = "nlZyrcPLg6oEwO9f9Wfn29Wh",
       LOGGER_REFRESH_TOKEN = "1/xzt4kwzE1H7W9VnKB8cAaCx6zb4Es4nKEoqaYHdTD15IgOrJDtdun6zK6XiATCKT";
 
-    Polymer({
+    Polymer( {
       is: "rise-logger",
 
       hostAttributes: {
@@ -98,7 +98,9 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         params: {
           type: Object,
           readOnly: true,
-          value: function() { return {}; }
+          value: function() {
+            return {};
+          }
         }
       },
 
@@ -108,7 +110,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
        * @event rise-logger-display-id
        */
 
-      _logWaiting: null,
+      _logsWaiting: [],
 
       _displayId: "",
 
@@ -124,11 +126,11 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 
       _token: "",
 
-      _isThrottled: function(event) {
-        return this._throttle && (this._lastEvent === event);
+      _isThrottled: function( event ) {
+        return this._throttle && ( this._lastEvent === event );
       },
 
-      _getInsertHeaders: function(token) {
+      _getInsertHeaders: function( token ) {
         return {
           "Content-Type": "application/json",
           "Authorization": "Bearer " + token
@@ -138,48 +140,57 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
       _getInsertURL: function() {
         var serviceUrl = "https://www.googleapis.com/bigquery/v2/projects/client-side-events/datasets/Widget_Events/tables/TABLE_ID/insertAll";
 
-        return serviceUrl.replace("TABLE_ID", this.tableName);
+        return serviceUrl.replace( "TABLE_ID", this.tableName );
       },
 
-      _insert: function(refreshData) {
+      _insert: function( refreshData ) {
         this._refreshDate = refreshData.refreshedAt || this._refreshDate;
         this._token = refreshData.token || this._token;
 
         this.$.insert.url = this._getInsertURL();
-        this.$.insert.headers = this._getInsertHeaders(this._token);
-        this.$.insert.body = JSON.stringify(this.$.utils.getInsertData(this.params));
+        this.$.insert.headers = this._getInsertHeaders( this._token );
+        this.$.insert.body = JSON.stringify( this.$.utils.getInsertData( this.params ) );
 
         this.$.insert.generateRequest();
       },
 
-      _onDisplayIdResponse: function(e, resp) {
-        if (resp.response && resp.response !== "") {
+      _nextLogWaiting: function() {
+        var self = this;
+
+        if ( this._logsWaiting.length > 0 ) {
+          this.debounce( "queue", function() {
+            var item = self._logsWaiting.shift();
+
+            self.log( item.tableName, item.params );
+            self._nextLogWaiting();
+          }, this._throttleDelay + 250 );
+        }
+      },
+
+      _onDisplayIdResponse: function( e, resp ) {
+        if ( resp.response && resp.response !== "" ) {
           this._displayId = resp.response.displayId;
         }
 
         this._displayIdReceived = true;
-        this.fire("rise-logger-display-id", this._displayId);
+        this.fire( "rise-logger-display-id", this._displayId );
 
-        if (this._logWaiting) {
-          this.log(this._logWaiting.tableName, this._logWaiting.params);
-        }
+        this._nextLogWaiting();
       },
 
       _onDisplayIdError: function() {
         this._displayIdReceived = true;
-        this.fire("rise-logger-display-id");
+        this.fire( "rise-logger-display-id" );
 
-        if (this._logWaiting) {
-          this.log(this._logWaiting.tableName, this._logWaiting.params);
-        }
+        this._nextLogWaiting();
       },
 
-      _onTokenResponse: function(e, resp) {
+      _onTokenResponse: function( e, resp ) {
         // in case there are other instances of rise-logger
         e.stopPropagation();
 
-        if (resp && resp.response) {
-          this._insert({ token: resp.response.access_token, refreshedAt: new Date() });
+        if ( resp && resp.response ) {
+          this._insert( { token: resp.response.access_token, refreshedAt: new Date() } );
         }
       },
 
@@ -197,9 +208,9 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         return params;
       },
 
-      _refreshToken: function () {
-        if (new Date() - this._refreshDate < 3580000) {
-          return this._insert({});
+      _refreshToken: function() {
+        if ( new Date() - this._refreshDate < 3580000 ) {
+          return this._insert( {} );
         }
 
         this.$.token.url = "https://www.googleapis.com/oauth2/v3/token";
@@ -220,45 +231,46 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
        * Logs data to Google Big Query
        *
        */
-      log: function(tableName, params) {
+      log: function( tableName, params ) {
         var self = this,
           insertParams;
 
-        if (!tableName || !params || (params.hasOwnProperty("event") && !params.event) ||
-          (params.hasOwnProperty("event") && this._isThrottled(params.event))) {
+        if ( !tableName || !params || ( params.hasOwnProperty( "event" ) && !params.event ) ||
+          ( params.hasOwnProperty( "event" ) && this._isThrottled( params.event ) ) ) {
           return;
         }
 
-        if (!this._displayIdReceived) {
+        if ( !this._displayIdReceived ) {
           // save the log details so they can be used to execute log() again from displayId handlers
-          this._logWaiting = {
+          this._logsWaiting.push( {
             tableName: tableName,
-            params: JSON.parse(JSON.stringify(params))
-          };
+            params: JSON.parse( JSON.stringify( params ) )
+          } );
 
           return;
         }
 
-        insertParams = this.$.utils.getInsertParams(params, this._displayId);
+        insertParams = this.$.utils.getInsertParams( params, this._displayId );
 
-        if (!insertParams || insertParams.usage_type === "dev") {
+        if ( !insertParams || insertParams.usage_type === "dev" ) {
           return;
         }
 
         this._throttle = true;
         this._lastEvent = params.event;
 
-        this._setTableName(tableName);
-        this._setParams(insertParams);
+        this._setTableName( tableName );
+        this._setParams( insertParams );
 
-        this.debounce("throttle", function () {
+        this.debounce( "throttle", function() {
           self._throttle = false;
-        }, this._throttleDelay);
+        }, this._throttleDelay );
 
         this._refreshToken();
       }
 
-    });
+    } );
 
-  })();
+  } )();
+
 </script>

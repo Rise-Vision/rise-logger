@@ -15,193 +15,241 @@
 <rise-logger id="logger"></rise-logger>
 
 <script>
-  suite("rise-logger", function () {
+  /* global sinon, suite, test, assert, setup, suiteSetup, suiteTeardown, setup, teardown */
+
+  suite( "rise-logger", function() {
     var clock,
-      logger = document.querySelector("#logger");
+      logger = document.querySelector( "#logger" );
 
-    suiteSetup(function() {
+    suiteSetup( function() {
       clock = sinon.useFakeTimers();
-    });
+    } );
 
-    suiteTeardown(function() {
+    suiteTeardown( function() {
       clock.restore();
-    });
+    } );
 
-    suite("_isThrottled", function () {
+    suite( "_isThrottled", function() {
 
-      suiteTeardown(function () {
+      suiteTeardown( function() {
         logger._throttle = false;
         logger._lastEvent = "";
-      });
+      } );
 
-      test("should return false if last event is not throttled", function () {
-        assert.isFalse(logger._isThrottled(""));
-      });
+      test( "should return false if last event is not throttled", function() {
+        assert.isFalse( logger._isThrottled( "" ) );
+      } );
 
-      test("should return true if last event is throttled", function () {
+      test( "should return true if last event is throttled", function() {
         logger._throttle = true;
         logger._lastEvent = "usage";
 
-        assert.isTrue(logger._isThrottled("usage"));
-      });
+        assert.isTrue( logger._isThrottled( "usage" ) );
+      } );
 
-    });
+    } );
 
-    suite("_getInsertHeaders", function () {
+    suite( "_getInsertHeaders", function() {
       var headers,
         insertHeaders = {
           "Content-Type": "application/json",
           "Authorization": "Bearer my-token"
         };
 
-      test("should return correct URL to use for making the insert request", function () {
-        headers = logger._getInsertHeaders("my-token");
+      test( "should return correct URL to use for making the insert request", function() {
+        headers = logger._getInsertHeaders( "my-token" );
 
-        assert.isObject(headers);
-        assert.deepEqual(headers, insertHeaders);
-      });
-    });
+        assert.isObject( headers );
+        assert.deepEqual( headers, insertHeaders );
+      } );
+    } );
 
-    suite("_getInsertUrl", function () {
+    suite( "_getInsertUrl", function() {
       var url,
         insertUrl = "https://www.googleapis.com/bigquery/v2/projects/client-side-events/datasets/Widget_Events/tables/image_events/insertAll";
 
-      suiteTeardown(function () {
-        logger._setTableName("");
-      });
+      suiteTeardown( function() {
+        logger._setTableName( "" );
+      } );
 
-      test("should return correct URL to use for making the insert request", function () {
-        logger._setTableName("image_events");
+      test( "should return correct URL to use for making the insert request", function() {
+        logger._setTableName( "image_events" );
 
         url = logger._getInsertURL();
 
-        assert.isString(url);
-        assert.equal(url, insertUrl);
-      });
-    });
+        assert.isString( url );
+        assert.equal( url, insertUrl );
+      } );
+    } );
 
-    suite("_onDisplayIdResponse", function () {
+    suite( "_nextLogWaiting", function() {
       var logStub;
 
-      var resp = {
+      setup( function() {
+        logStub = sinon.stub( logger, "log" );
+      } );
+
+      teardown( function() {
+        logStub.restore();
+        logger._logsWaiting = [];
+      } );
+
+      test( "should call log() for every queued item", function() {
+        logger._logsWaiting = [ {
+          tableName: "test", params: { event: "ready" }
+        }, {
+          tableName: "test2", params: { event: "error" }
+        } ];
+
+        logger._nextLogWaiting();
+
+        // simulate debounce and progress more than 2.5 seconds
+        clock.tick( 3000 );
+
+        assert.isTrue( logStub.calledTwice );
+        assert.equal( logger._logsWaiting.length, 0 );
+      } );
+
+      test( "should not call log() if no queued items", function() {
+        logger._nextLogWaiting();
+
+        clock.tick( 3000 );
+
+        assert.equal( logStub.callCount, 0 );
+      } );
+
+    } );
+
+    suite( "_onDisplayIdResponse", function() {
+      var nextLogStub,
+        resp = {
           "response": {
             "displayId": "abc123"
           }
         },
         e = {
-          "stopPropagation": function () {}
+          "stopPropagation": function() {}
         };
 
-      setup(function () {
-        logStub = sinon.stub(logger, "log");
+      setup( function() {
+        nextLogStub = sinon.stub( logger, "_nextLogWaiting" );
         logger._displayIdReceived = false;
-      });
+      } );
 
-      teardown(function () {
-        logStub.restore();
-        logger._logWaiting = null;
+      teardown( function() {
+        nextLogStub.restore();
+        logger._logsWaiting = [];
         logger._displayId = "";
-      });
+      } );
 
-      test("should flag display id has been received", function() {
-        logger._onDisplayIdResponse(e, resp);
+      test( "should flag display id has been received", function() {
+        logger._onDisplayIdResponse( e, resp );
 
-        assert.isTrue(logger._displayIdReceived);
-      });
+        assert.isTrue( logger._displayIdReceived );
+      } );
 
-      test("should fire 'rise-logger-display-id' event", function(done) {
-        var listener = function(response) {
-          responded = true;
-          assert.equal(resp.response.displayId, response.detail);
-          logger.removeEventListener("rise-logger-display-id", listener);
-        },
-          responded = false;
-
-        logger.addEventListener("rise-logger-display-id", listener);
-        logger._onDisplayIdResponse(e, resp);
-
-        assert.isTrue(responded);
-        done();
-      });
-
-      test("should call log() function with saved log params", function () {
-        logger._logWaiting = {tableName: "test", params: {event: "ready"}};
-        logger._onDisplayIdResponse(e, resp);
-
-        assert.isTrue(logStub.calledWith("test", {event: "ready"}));
-      });
-    });
-
-    suite("_onDisplayIdError", function() {
-      var logStub;
-
-      setup(function () {
-        logStub = sinon.stub(logger, "log");
-        logger._displayIdReceived = false;
-      });
-
-      teardown(function () {
-        logStub.restore();
-        logger._logWaiting = null;
-      });
-
-      test("should flag display id has been received", function() {
-        logger._onDisplayIdError();
-
-        assert.isTrue(logger._displayIdReceived);
-      });
-
-      test("should fire 'rise-logger-display-id' event", function(done) {
-        var listener = function() {
+      test( "should fire 'rise-logger-display-id' event", function( done ) {
+        var listener = function( response ) {
             responded = true;
-            logger.removeEventListener("rise-logger-display-id", listener);
+            assert.equal( resp.response.displayId, response.detail );
+            logger.removeEventListener( "rise-logger-display-id", listener );
           },
           responded = false;
 
-        logger.addEventListener("rise-logger-display-id", listener);
-        logger._onDisplayIdError();
+        logger.addEventListener( "rise-logger-display-id", listener );
+        logger._onDisplayIdResponse( e, resp );
 
-        assert.isTrue(responded);
+        assert.isTrue( responded );
         done();
-      });
+      } );
 
-      test("should call log() function with saved log params", function () {
-        logger._logWaiting = {tableName: "test", params: {event: "ready"}};
+      test( "should call _nextLogWaiting() function to execute any queued log() calls", function() {
+        logger._logsWaiting = [ {
+          tableName: "test", params: { event: "ready" }
+        }, {
+          tableName: "test2", params: { event: "error" }
+        } ];
+
+        logger._onDisplayIdResponse( e, resp );
+
+        assert.isTrue( nextLogStub.calledOnce );
+      } );
+    } );
+
+    suite( "_onDisplayIdError", function() {
+      var nextLogStub;
+
+      setup( function() {
+        nextLogStub = sinon.stub( logger, "_nextLogWaiting" );
+        logger._displayIdReceived = false;
+      } );
+
+      teardown( function() {
+        nextLogStub.restore();
+        logger._logWaiting = null;
+      } );
+
+      test( "should flag display id has been received", function() {
         logger._onDisplayIdError();
 
-        assert.isTrue(logStub.calledWith("test", {event: "ready"}));
-      });
-    });
+        assert.isTrue( logger._displayIdReceived );
+      } );
 
-    suite("_onTokenResponse", function () {
-      var insertStub;
+      test( "should fire 'rise-logger-display-id' event", function( done ) {
+        var listener = function() {
+            responded = true;
+            logger.removeEventListener( "rise-logger-display-id", listener );
+          },
+          responded = false;
 
-      var resp = {
+        logger.addEventListener( "rise-logger-display-id", listener );
+        logger._onDisplayIdError();
+
+        assert.isTrue( responded );
+        done();
+      } );
+
+      test( "should call _nextLogWaiting() function to execute any queued log() calls", function() {
+        logger._logsWaiting = [ {
+          tableName: "test", params: { event: "ready" }
+        }, {
+          tableName: "test2", params: { event: "error" }
+        } ];
+
+        logger._onDisplayIdError();
+
+        assert.isTrue( nextLogStub.calledOnce );
+      } );
+    } );
+
+    suite( "_onTokenResponse", function() {
+      var insertStub,
+        resp = {
           "response": {
             "access_token": "my-token"
           }
         },
         e = {
-          "stopPropagation": function () {}
+          "stopPropagation": function() {}
         };
 
-      setup(function () {
-        insertStub = sinon.stub(logger, "_insert");
-      });
+      setup( function() {
+        insertStub = sinon.stub( logger, "_insert" );
+      } );
 
-      teardown(function () {
+      teardown( function() {
         insertStub.restore();
-      });
+      } );
 
-      test("should call _insert function with correct values", function () {
-        logger._onTokenResponse(e, resp);
+      test( "should call _insert function with correct values", function() {
+        logger._onTokenResponse( e, resp );
 
-        assert.isTrue(insertStub.calledWith({token: resp.response.access_token, refreshedAt: clock.Date()}));
-      });
+        assert.isTrue( insertStub.calledWith( { token: resp.response.access_token, refreshedAt: clock.Date() } ) );
+      } );
 
-    });
+    } );
 
-    suite("_getTokenParams", function() {
+    suite( "_getTokenParams", function() {
       var params,
         tokenParams = {
           client_id: "1088527147109-6q1o2vtihn34292pjt4ckhmhck0rk0o7.apps.googleusercontent.com",
@@ -210,145 +258,151 @@
           grant_type: "refresh_token"
         };
 
-      test("should return an object with correct params", function () {
+      test( "should return an object with correct params", function() {
         params = logger._getTokenParams();
 
-        assert.deepEqual(params, tokenParams);
-      });
+        assert.deepEqual( params, tokenParams );
+      } );
 
-    });
+    } );
 
-    suite("log", function() {
-      var refreshStub,
-        params = {
-          "event": "refresh"
-        };
+    suite( "log", function() {
+      var refreshStub;
 
-      function insertDev(params) {
+      function insertDev( params ) {
         return {
           "event": params.event,
           "usage_type": "dev"
         };
       }
 
-      function insertStandalone(params) {
+      function insertStandalone( params ) {
         return {
           "event": params.event,
           "usage_type": "standalone"
         };
       }
 
-      setup(function() {
-        refreshStub = sinon.stub(logger, "_refreshToken");
+      setup( function() {
+        refreshStub = sinon.stub( logger, "_refreshToken" );
         logger._displayIdReceived = true;
         logger._displayId = "abc123";
-      });
+      } );
 
-      teardown(function() {
+      teardown( function() {
         refreshStub.restore();
         logger._throttle = false;
         logger._lastEvent = "";
-        logger._logWaiting = null;
-      });
+        logger._logsWaiting = [];
+      } );
 
-      test("should not make a request if table name is empty", function() {
-        logger.log("", {
+      test( "should not make a request if table name is empty", function() {
+        logger.log( "", {
           "event": "refresh"
-        });
+        } );
 
-        assert.equal(refreshStub.callCount, 0);
-      });
+        assert.equal( refreshStub.callCount, 0 );
+      } );
 
-      test("should not make a request if no params provided", function() {
-        logger.log("component_sheet_events");
+      test( "should not make a request if no params provided", function() {
+        logger.log( "component_sheet_events" );
 
-        assert.equal(refreshStub.callCount, 0);
-      });
+        assert.equal( refreshStub.callCount, 0 );
+      } );
 
-      test("should not make a request if event is empty", function() {
-        logger.log("component_sheet_events", {
+      test( "should not make a request if event is empty", function() {
+        logger.log( "component_sheet_events", {
           "event": ""
-        });
+        } );
 
-        assert.equal(refreshStub.callCount, 0);
-      });
+        assert.equal( refreshStub.callCount, 0 );
+      } );
 
-      test("should not make a request if event is throttled", function() {
+      test( "should not make a request if event is throttled", function() {
         logger._throttle = true;
         logger._lastEvent = "ready";
 
-        logger.log("component_sheet_events", {
+        logger.log( "component_sheet_events", {
           "event": "ready"
-        });
+        } );
 
-        assert.equal(refreshStub.callCount, 0);
-      });
+        assert.equal( refreshStub.callCount, 0 );
+      } );
 
-      test("should not make a request if usage type is 'dev'", function() {
-        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertDev);
+      test( "should not make a request if usage type is 'dev'", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertDev );
 
-        logger.log("component_sheet_events", {
+        logger.log( "component_sheet_events", {
           "event": "ready"
-        });
+        } );
 
-        assert.equal(refreshStub.callCount, 0);
+        assert.equal( refreshStub.callCount, 0 );
 
         getInsertStub.restore();
-      });
+      } );
 
-      test("should not make a request and save log params when display id not received", function() {
-        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
+      test( "should not make a request and save log params when display id not received", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertStandalone );
 
         logger._displayIdReceived = false;
 
-        logger.log("component_sheet_events", {
+        logger.log( "test1", {
           "event": "ready"
-        });
+        } );
 
-        assert.equal(refreshStub.callCount, 0);
-        assert.deepEqual(logger._logWaiting, {tableName: "component_sheet_events", params: {"event": "ready"}});
+        logger.log( "test2", {
+          "event": "error"
+        } );
 
-        getInsertStub.restore();
-      });
-
-      test("should not log the same event multiple times if the time between calls is less than 1 second", function() {
-        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
-
-        logger.log("component_sheet_events", {"event": "ready"});
-        clock.tick(500);
-        logger.log("component_sheet_events", {"event": "ready"});
-
-        assert.equal(refreshStub.callCount, 1);
+        assert.equal( refreshStub.callCount, 0 );
+        assert.deepEqual( logger._logsWaiting, [ {
+          tableName: "test1", params: { "event": "ready" }
+        }, {
+          tableName: "test2", params: { "event": "error" }
+        } ] );
 
         getInsertStub.restore();
-      });
+      } );
 
-      test("should log the same event multiple times if the time between calls is over 1 second", function() {
-        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
+      test( "should not log the same event multiple times if the time between calls is less than 1 second", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertStandalone );
 
-        logger.log("component_sheet_events", {"event": "ready"});
-        clock.tick(1500);
-        logger.log("component_sheet_events", {"event": "ready"});
+        logger.log( "component_sheet_events", { "event": "ready" } );
+        clock.tick( 500 );
+        logger.log( "component_sheet_events", { "event": "ready" } );
 
-        assert.equal(refreshStub.callCount, 2);
-
-        getInsertStub.restore();
-      });
-
-      test("should log different events if the time between calls is less than 1 second", function() {
-        var getInsertStub = sinon.stub(logger.$.utils, "getInsertParams", insertStandalone);
-
-        logger.log("component_sheet_events", {"event": "ready"});
-        logger.log("component_sheet_events", {"event": "test"});
-
-        assert.equal(refreshStub.callCount, 2);
+        assert.equal( refreshStub.callCount, 1 );
 
         getInsertStub.restore();
-      });
+      } );
 
-    });
+      test( "should log the same event multiple times if the time between calls is over 1 second", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertStandalone );
 
-  });
+        logger.log( "component_sheet_events", { "event": "ready" } );
+        clock.tick( 1500 );
+        logger.log( "component_sheet_events", { "event": "ready" } );
+
+        assert.equal( refreshStub.callCount, 2 );
+
+        getInsertStub.restore();
+      } );
+
+      test( "should log different events if the time between calls is less than 1 second", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertStandalone );
+
+        logger.log( "component_sheet_events", { "event": "ready" } );
+        logger.log( "component_sheet_events", { "event": "test" } );
+
+        assert.equal( refreshStub.callCount, 2 );
+
+        getInsertStub.restore();
+      } );
+
+    } );
+
+  } );
+
 </script>
 </body>
 </html>
