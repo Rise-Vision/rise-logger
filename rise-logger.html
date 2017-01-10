@@ -155,12 +155,13 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
       },
 
       _nextLogWaiting: function() {
-        var self = this;
+        var self = this,
+          item;
 
-        if ( this._logsWaiting.length > 0 ) {
+        if (this._logsWaiting.length > 0) {
+          item = this._logsWaiting.shift();
+
           this.debounce( "queue", function() {
-            var item = self._logsWaiting.shift();
-
             self.log( item.tableName, item.params );
             self._nextLogWaiting();
           }, this._throttleDelay + 250 );
