@@ -110,6 +110,20 @@
         assert.equal( logger._logsWaiting.length, 0 );
       } );
 
+      test( "should not call log() again after removing all queued items", function() {
+        logger._logsWaiting = [ {
+          tableName: "test", params: { event: "ready" }
+        }, {
+          tableName: "test2", params: { event: "error" }
+        } ];
+        logger._nextLogWaiting();
+
+        // simulate debounce and progress time more than 3 possible items
+        clock.tick( 6000 );
+
+        assert.isTrue( logStub.calledTwice );
+      } );
+
       test( "should not call log() if no queued items", function() {
         logger._nextLogWaiting();
 
