@@ -8,6 +8,7 @@
     del = require( "del" ),
     eslint = require( "gulp-eslint" ),
     gulp = require( "gulp" ),
+    htmlreplace = require( "gulp-html-replace" ),
     runSequence = require( "run-sequence" ),
     wct = require( "web-component-tester" ).gulp.init( gulp ); // eslint-disable-line
 
@@ -16,10 +17,23 @@
   } );
 
   gulp.task( "lint", function() {
-    return gulp.src( [ "./*.js", "test/**/*.html" ] )
+    return gulp.src( [ "./**/*.js", "./**/*.html" ] )
       .pipe( eslint() )
       .pipe( eslint.format() )
       .pipe( eslint.failAfterError() );
+  } );
+
+  gulp.task( "version", function() {
+    var pkg = require( "./package.json" );
+
+    gulp.src( "./rise-logger.html" )
+      .pipe( htmlreplace( {
+        "version": {
+          src: pkg.version,
+          tpl: "<script>var loggerVersion = \"%s\";</script>"
+        }
+      }, { keepBlockTags: true } ) )
+      .pipe( gulp.dest( "./" ) );
   } );
 
   // ***** Primary Tasks ***** //
@@ -40,7 +54,7 @@
     runSequence( "test:local", cb );
   } );
 
-  gulp.task( "build", function( cb ) {
+  gulp.task( "build", [ "version" ], function( cb ) {
     runSequence( "lint", cb );
   } );
 

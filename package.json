@@ -1,6 +1,6 @@
 {
   "name": "rise-logger",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Rise Vision web component used for logging usage of a parent web component",
   "scripts": {
     "test": "gulp test",
@@ -36,6 +36,7 @@
     "gulp-bower": "~0.0.10",
     "gulp-bump": "~0.2.0",
     "gulp-eslint": "^3.0.1",
+    "gulp-html-replace": "~1.6.1",
     "run-sequence": "~1.1.0",
     "web-component-tester": "*",
     "widget-tester": "git://github.com/Rise-Vision/widget-tester.git"
