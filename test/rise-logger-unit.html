@@ -204,6 +204,7 @@
       } );
 
       test( "should flag display id has been received", function() {
+        logger._retriedHttp = true;
         logger._onDisplayIdError();
 
         assert.isTrue( logger._displayIdReceived );
