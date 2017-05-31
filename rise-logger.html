@@ -45,7 +45,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
   <template>
     <rise-logger-utils id="utils"></rise-logger-utils>
     <iron-ajax id="displayId"
-               url="https://localhost:9494/displays"
+               url="{{_displayIdBaseUrl}}"
                handle-as="json"
                on-response="_onDisplayIdResponse"
                on-error="_onDisplayIdError"
@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <!-- build:version -->
-<script>var loggerVersion = "1.0.5";</script>
+<script>var loggerVersion = "1.0.6";</script>
 <!-- endbuild -->
 
 <script>
@@ -130,6 +130,10 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 
       _token: "",
 
+      _retriedHttp: false,
+
+      _displayIdBaseUrl: "https://localhost:9494/displays",
+
       _isThrottled: function( event ) {
         return this._throttle && ( this._lastEvent === event );
       },
@@ -184,10 +188,23 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
       },
 
       _onDisplayIdError: function() {
-        this._displayIdReceived = true;
-        this.fire( "rise-logger-display-id" );
 
-        this._nextLogWaiting();
+        if ( this._retriedHttp ) {
+
+          this._displayIdReceived = true;
+          this.fire( "rise-logger-display-id" );
+
+          this._nextLogWaiting();
+
+        } else {
+          this._retryDisplayIdHttp();
+        }
+      },
+
+      _retryDisplayIdHttp: function() {
+        this._displayIdBaseUrl = "http://localhost:9494/displays";
+        this._retriedHttp = true;
+        this.$.displayId.generateRequest();
       },
 
       _onTokenResponse: function( e, resp ) {
