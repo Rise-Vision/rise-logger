@@ -45,7 +45,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
   <template>
     <rise-logger-utils id="utils"></rise-logger-utils>
     <iron-ajax id="displayId"
-               url="http://localhost:9494/displays"
+               url="https://localhost:9494/displays"
                handle-as="json"
                on-response="_onDisplayIdResponse"
                on-error="_onDisplayIdError"
@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <!-- build:version -->
-<script>var loggerVersion = "1.0.4";</script>
+<script>var loggerVersion = "1.0.5";</script>
 <!-- endbuild -->
 
 <script>
