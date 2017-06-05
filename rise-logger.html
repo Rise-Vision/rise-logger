@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <!-- build:version -->
-<script>var loggerVersion = "1.0.7";</script>
+<script>var loggerVersion = "1.0.8";</script>
 <!-- endbuild -->
 
 <script>
@@ -132,7 +132,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 
       _retriedHttp: false,
 
-      _displayIdBaseUrl: "https://localhost:9494/displays",
+      _displayIdBaseUrl: "https://localhost:9495/displays",
 
       _isThrottled: function( event ) {
         return this._throttle && ( this._lastEvent === event );
@@ -245,7 +245,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
        * An instance of the element was inserted into the DOM.
        */
       attached: function() {
-        this._displayIdBaseUrl = "https://localhost:9494/displays";
+        this._displayIdBaseUrl = "https://localhost:9495/displays";
         // request the display id from Rise Cache
         this.$.displayId.generateRequest();
       },
