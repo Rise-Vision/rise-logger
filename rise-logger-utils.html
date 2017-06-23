@@ -92,6 +92,19 @@
         }
 
         return json;
+      },
+
+      logEventToPlayer: function( table, params ) {
+        try {
+          top.postToPlayer( {
+            message: "widget-log",
+            table: table,
+            params: JSON.stringify( params ),
+            suffix: this._getSuffix()
+          } );
+        } catch ( err ) {
+          console.log( "rise-logger.logEventToPlayer", err ); // eslint-disable-line no-console
+        }
       }
 
     } );

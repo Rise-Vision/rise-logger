@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <!-- build:version -->
-<script>var loggerVersion = "1.0.8";</script>
+<script>var loggerVersion = "1.0.9";</script>
 <!-- endbuild -->
 
 <script>
@@ -273,10 +273,21 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
           return;
         }
 
+        // don't log if display id is invalid or preview/local
+        if ( !this._displayId || this._displayId === "preview" || this._displayId === "display_id" ||
+          this._displayId === "displayId" ) {
+          return;
+        }
+
         insertParams = this.$.utils.getInsertParams( params, this._displayId );
 
         if ( !insertParams || insertParams.usage_type === "dev" ) {
           return;
+        }
+
+        if ( top.postToPlayer && top.enableWidgetLogging ) {
+          // send log data to player instead of BQ
+          return this.$.utils.logEventToPlayer( tableName, insertParams );
         }
 
         this._throttle = true;
