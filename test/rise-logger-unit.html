@@ -302,6 +302,8 @@
         refreshStub = sinon.stub( logger, "_refreshToken" );
         logger._displayIdReceived = true;
         logger._displayId = "abc123";
+        top.postToPlayer = undefined;
+        top.enableWidgetLogging = false;
       } );
 
       teardown( function() {
@@ -377,6 +379,39 @@
         } ] );
 
         getInsertStub.restore();
+      } );
+
+      test( "should not make a request if the display id value is invalid", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertStandalone );
+
+        logger._displayId = "preview";
+
+        logger.log( "component_sheet_events", {
+          "event": "ready"
+        } );
+
+        assert.equal( refreshStub.callCount, 0 );
+
+        getInsertStub.restore();
+      } );
+
+      test( "should call utils 'logEventtoPlayer' when enableWidgetLogging exists", function() {
+        var getInsertStub = sinon.stub( logger.$.utils, "getInsertParams", insertStandalone ),
+          logToPlayerStub = sinon.stub( logger.$.utils, "logEventToPlayer" );
+
+        top.postToPlayer = function() {};
+        top.enableWidgetLogging = true;
+
+        logger.log( "component_sheet_events", {
+          "event": "ready"
+        } );
+
+        assert.equal( logToPlayerStub.args[ 0 ][ 0 ], "component_sheet_events" );
+        assert.deepEqual( logToPlayerStub.args[ 0 ][ 1 ], { event: "ready", usage_type: "standalone" } );
+        assert.equal( refreshStub.callCount, 0 );
+
+        getInsertStub.restore();
+        logToPlayerStub.restore();
       } );
 
       test( "should not log the same event multiple times if the time between calls is less than 1 second", function() {

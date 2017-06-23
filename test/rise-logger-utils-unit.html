@@ -117,6 +117,33 @@
 
         utils._getUsageType.restore();
       } );
+    } );
+
+    suite( "logEventToPlayer", function() {
+      var tableName = "component_sheet_events",
+        params = {
+          "event": "ready",
+          "event_details": "testing",
+          "usage_type": "standalone",
+          "display_id": "abc123"
+        };
+
+      suiteSetup( function() {
+        top.postToPlayer = function() {};
+      } );
+
+      test( "should call postToPlayer on top window with correct parameters", function() {
+        var postStub = sinon.stub( top, "postToPlayer" );
+
+        utils.logEventToPlayer( tableName, utils.getInsertParams( params, "abc123" ) );
+
+        assert.equal( postStub.args[ 0 ][ 0 ].message, "widget-log" );
+        assert.equal( postStub.args[ 0 ][ 0 ].table, tableName );
+        assert.equal( postStub.args[ 0 ][ 0 ].params, JSON.stringify( params ) );
+        assert.property( postStub.args[ 0 ][ 0 ], "suffix" );
+
+        top.postToPlayer.restore();
+      } );
 
     } );
 
