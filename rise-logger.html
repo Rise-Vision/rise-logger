@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <!-- build:version -->
-<script>var loggerVersion = "1.0.10";</script>
+<script>var loggerVersion = "1.0.11";</script>
 <!-- endbuild -->
 
 <script>
@@ -138,6 +138,18 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         return this._throttle && ( this._lastEvent === event );
       },
 
+      _isRiseCacheSchemeEnabled: function() {
+        try {
+          if ( top.enableRiseCacheScheme ) {
+            return true;
+          }
+        } catch ( err ) {
+          console.log( "rise-logger._isRiseCacheSchemeEnabled", err ); // eslint-disable-line no-console
+        }
+
+        return false;
+      },
+
       _getInsertHeaders: function( token ) {
         return {
           "Content-Type": "application/json",
@@ -202,7 +214,9 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
       },
 
       _retryDisplayIdHttp: function() {
-        this._displayIdBaseUrl = "http://localhost:9494/displays";
+        var protocol = ( this._isRiseCacheSchemeEnabled() ) ? "rchttp://" : "http://";
+
+        this._displayIdBaseUrl = protocol + "localhost:9494/displays";
         this._retriedHttp = true;
         this.$.displayId.generateRequest();
       },
@@ -245,7 +259,9 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
        * An instance of the element was inserted into the DOM.
        */
       attached: function() {
-        this._displayIdBaseUrl = "https://localhost:9495/displays";
+        var protocol = ( this._isRiseCacheSchemeEnabled() ) ? "rchttps://" : "https://";
+
+        this._displayIdBaseUrl = protocol + "localhost:9495/displays";
         // request the display id from Rise Cache
         this.$.displayId.generateRequest();
       },
