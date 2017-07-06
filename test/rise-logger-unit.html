@@ -49,6 +49,22 @@
 
     } );
 
+    suite( "_isRiseCacheSchemeEnabled", function() {
+
+      test( "should return false if top window flag doesn't exist", function() {
+        assert.isFalse( logger._isRiseCacheSchemeEnabled() );
+      } );
+
+      test( "should return true if last event is throttled", function() {
+        top.enableRiseCacheScheme = true;
+
+        assert.isTrue( logger._isRiseCacheSchemeEnabled() );
+
+        top.enableRiseCacheScheme = false;
+      } );
+
+    } );
+
     suite( "_getInsertHeaders", function() {
       var headers,
         insertHeaders = {
@@ -277,6 +293,62 @@
         params = logger._getTokenParams();
 
         assert.deepEqual( params, tokenParams );
+      } );
+
+    } );
+
+    suite( "_retryDisplayIdHttp", function() {
+
+      suiteSetup( function() {
+        sinon.stub( logger.$.displayId, "generateRequest" );
+      } );
+
+      suiteTeardown( function() {
+        logger.$.displayId.generateRequest.restore();
+        logger._retriedHttp = false;
+        top.enableRiseCacheScheme = false;
+      } );
+
+      test( "should set display id request url to use 'rchttp' scheme", function() {
+        top.enableRiseCacheScheme = true;
+        logger._retryDisplayIdHttp();
+
+        assert.isTrue( logger.$.displayId.url.startsWith( "rchttp://" ) );
+      } );
+
+      test( "should set display id request url to not use 'rchttp' scheme", function() {
+        top.enableRiseCacheScheme = false;
+        logger._retryDisplayIdHttp();
+
+        assert.isTrue( logger.$.displayId.url.startsWith( "http://" ) );
+      } );
+
+    } );
+
+    suite( "attached", function() {
+
+      suiteSetup( function() {
+        sinon.stub( logger.$.displayId, "generateRequest" );
+      } );
+
+      suiteTeardown( function() {
+        logger.$.displayId.generateRequest.restore();
+        logger._retriedHttp = false;
+        top.enableRiseCacheScheme = false;
+      } );
+
+      test( "should set display id request url to use 'rchttps' scheme", function() {
+        top.enableRiseCacheScheme = true;
+        logger.attached();
+
+        assert.isTrue( logger.$.displayId.url.startsWith( "rchttps://" ) );
+      } );
+
+      test( "should set display id request url to not use 'rchttp' scheme", function() {
+        top.enableRiseCacheScheme = false;
+        logger.attached();
+
+        assert.isTrue( logger.$.displayId.url.startsWith( "https://" ) );
       } );
 
     } );
