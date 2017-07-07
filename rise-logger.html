@@ -143,9 +143,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
           if ( top.enableRiseCacheScheme ) {
             return true;
           }
-        } catch ( err ) {
-          console.log( "rise-logger._isRiseCacheSchemeEnabled", err ); // eslint-disable-line no-console
-        }
+        } catch ( err ) {} // eslint-disable-line no-empty
 
         return false;
       },
