@@ -7,6 +7,10 @@
 
   <script src="../bower_components/webcomponentsjs/webcomponents.min.js"></script>
   <script src="../bower_components/web-component-tester/browser.js"></script>
+  <script>
+    // global flag that rise-logger checks on ready handler for determining if running in an integration test
+    window.riseLoggerTests = true;
+  </script>
 
   <link rel="import" href="../rise-logger.html">
 </head>
@@ -17,7 +21,7 @@
 <script>
   /* global sinon, suite, test, assert, setup, suiteSetup, suiteTeardown */
 
-  var logger = document.querySelector( "#logger" ),
+  var logger = document.querySelector( "#logger" ), // eslint-disable-line vars-on-top
     display = "abc123";
 
   // mock getting display id from Rise Cache
@@ -59,6 +63,9 @@
           "response": data
         } )
       } );
+
+      // required for integration test
+      logger._startTests();
     } );
 
     suiteTeardown( function() {

@@ -64,7 +64,7 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
 </dom-module>
 
 <!-- build:version -->
-<script>var loggerVersion = "1.0.11";</script>
+<script>var loggerVersion = "1.0.12";</script>
 <!-- endbuild -->
 
 <script>
@@ -253,11 +253,25 @@ The following illustrates how to use `rise-logger` within a parent Rise Vision w
         this.$.token.generateRequest();
       },
 
+      _startTests: function() {
+        // ensure to not execute code below if this integration test flag is not set
+        if ( !window.riseLoggerTests ) {
+          return;
+        }
+
+        this.ready( true );
+      },
+
       /**
-       * An instance of the element was inserted into the DOM.
+       * Polymer has finished its initialization. This is the entry point.
        */
-      attached: function() {
+      ready: function( runningTests ) {
         var protocol = ( this._isRiseCacheSchemeEnabled() ) ? "rchttps://" : "https://";
+
+        // Necessary for integration tests so this function doesn't execute code below before stubs can be created
+        if ( window.riseLoggerTests && !runningTests ) {
+          return;
+        }
 
         this._displayIdBaseUrl = protocol + "localhost:9495/displays";
         // request the display id from Rise Cache
