@@ -325,7 +325,7 @@
 
     } );
 
-    suite( "attached", function() {
+    suite( "ready", function() {
 
       suiteSetup( function() {
         sinon.stub( logger.$.displayId, "generateRequest" );
@@ -339,14 +339,14 @@
 
       test( "should set display id request url to use 'rchttps' scheme", function() {
         top.enableRiseCacheScheme = true;
-        logger.attached();
+        logger.ready();
 
         assert.isTrue( logger.$.displayId.url.startsWith( "rchttps://" ) );
       } );
 
       test( "should set display id request url to not use 'rchttp' scheme", function() {
         top.enableRiseCacheScheme = false;
-        logger.attached();
+        logger.ready();
 
         assert.isTrue( logger.$.displayId.url.startsWith( "https://" ) );
       } );
